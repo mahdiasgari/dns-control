@@ -1,0 +1,24 @@
+services:
+
+  dns-control:
+    build:
+      context: .
+
+    container_name: dns-control
+
+    restart: unless-stopped
+
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+      - "8080:8080/tcp"
+
+    environment:
+      DNS_LISTEN: ":53"
+      API_LISTEN: ":8080"
+      DNS_UPSTREAM: "1.1.1.1:53"
+      DOMAIN_FILE: "/etc/dns-control/config.yaml"
+      AGENT_TOKEN: "CHANGE-ME"
+
+    volumes:
+      - ./configs/config.yaml:/etc/dns-control/config.yaml:ro

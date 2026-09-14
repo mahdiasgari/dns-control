@@ -1,0 +1,32 @@
+dns:
+  listen: ":8053"
+  upstream:
+    - "1.1.1.1:53"
+    - "8.8.8.8:53"
+    - "9.9.9.9:53"
+  ttl: 30
+
+api:
+  listen: ":8080"
+
+agent:
+  token: "CHANGE-ME"
+
+domains:
+
+  # SNI based hijack.
+  # Agent must allocate the SNI/edge endpoint.
+  - domain: "youtube.com"
+    mode: "hijack"
+
+  # Traffic routing.
+  # Agent must allocate routing resources.
+  # This mode is intended for domains where UDP
+  # traffic needs to be handled by the edge.
+  - domain: "game.example.com"
+    mode: "route"
+
+  # Normal DNS resolution.
+  # No middle server and no agent allocation.
+  - domain: "google.com"
+    mode: "normal"
