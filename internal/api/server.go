@@ -4,17 +4,16 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 )
 
 type Server struct {
 	listen  string
-	handler *Handler
+	handler http.Handler
 }
 
 func NewServer(
 	listen string,
-	handler *Handler,
+	handler http.Handler,
 ) *Server {
 	return &Server{
 		listen:  listen,
@@ -23,43 +22,28 @@ func NewServer(
 }
 
 func (s *Server) Start() error {
-	mux := http.NewServeMux()
-
-	s.handler.Routes(mux)
-
-	server := &http.Server{
-		Addr:              s.listen,
-		Handler:           loggingMiddleware(mux),
-		ReadHeaderTimeout: 5 * time.Second,
+	if s.listen == "" {
+		return fmt.Errorf("API listen address is empty")
 	}
 
-	log.Printf("api: listening on %s", s.listen)
+	if s.handler == nil {
+		return fmt.Errorf("API handler is nil")
+	}
 
-	if err := server.ListenAndServe(); err != nil {
+	server := &http.Server{
+		Addr:    s.listen,
+		Handler: s.handler,
+	}
+
+	log.Printf(
+		"api: listening on %s",
+		s.listen,
+	)
+
+	if err := server.ListenAndServe(); err != nil &&
+		err != http.ErrServerClosed {
 		return fmt.Errorf("API server: %w", err)
 	}
 
 	return nil
-}
-
-func loggingMiddleware(
-	next http.Handler,
-) http.Handler {
-	return http.HandlerFunc(
-		func(
-			w http.ResponseWriter,
-			r *http.Request,
-		) {
-			start := time.Now()
-
-			next.ServeHTTP(w, r)
-
-			log.Printf(
-				"api: method=%s path=%s duration=%s",
-				r.Method,
-				r.URL.Path,
-				time.Since(start),
-			)
-		},
-	)
 }

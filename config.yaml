@@ -16,14 +16,14 @@ domains:
 
   # SNI based hijack.
   # Agent must allocate the SNI/edge endpoint.
-  - domain: "youtube.com"
+  - domain: "playstation.com"
     mode: "hijack"
 
   # Traffic routing.
   # Agent must allocate routing resources.
   # This mode is intended for domains where UDP
   # traffic needs to be handled by the edge.
-  - domain: "game.example.com"
+  - domain: "https://www.ea.com/"
     mode: "route"
 
   # Normal DNS resolution.

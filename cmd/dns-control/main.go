@@ -46,6 +46,24 @@ func main() {
 
 	allocationStore := allocation.NewStore()
 
+	for _, rule := range cfg.Domains {
+
+		switch rule.Mode {
+
+		case domain.ModeHijack:
+			allocationStore.EnsurePending(
+				rule.Domain,
+				allocation.TypeSNI,
+			)
+
+		case domain.ModeRoute:
+			allocationStore.EnsurePending(
+				rule.Domain,
+				allocation.TypeRoute,
+			)
+		}
+	}
+
 	resolver := dns.NewResolver(
 		cfg.DNS.Upstream,
 	)

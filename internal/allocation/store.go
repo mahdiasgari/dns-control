@@ -1,115 +1,174 @@
 package allocation
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Store struct {
 	mu sync.RWMutex
 
-	allocations map[string]Allocation
+	leases map[string]*Lease
 
 	revision uint64
+
+	leaseDuration time.Duration
 }
 
 func NewStore() *Store {
 	return &Store{
-		allocations: make(map[string]Allocation),
+		leases:        make(map[string]*Lease),
+		leaseDuration: 30 * time.Second,
 	}
 }
 
-func normalizeDomain(domain string) string {
-	domain = strings.TrimSpace(domain)
-	domain = strings.TrimSuffix(domain, ".")
-	return strings.ToLower(domain)
+func normalize(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.TrimSuffix(value, ".")
+	return strings.ToLower(value)
 }
 
-func (s *Store) Upsert(a Allocation) error {
-	a.Domain = normalizeDomain(a.Domain)
-
-	if a.Domain == "" {
-		return fmt.Errorf("domain is required")
-	}
-
-	if a.AgentID == "" {
-		return fmt.Errorf("agent_id is required")
-	}
-
-	switch a.Type {
-	case TypeSNI:
-		if a.Address == "" {
-			return fmt.Errorf("address is required for SNI allocation")
-		}
-
-	case TypeRoute:
-		if a.Address == "" {
-			return fmt.Errorf("address is required for ROUTE allocation")
-		}
-
-	default:
-		return fmt.Errorf("invalid allocation type: %q", a.Type)
-	}
+func (s *Store) EnsurePending(
+	domain string,
+	t Type,
+) {
+	domain = normalize(domain)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if _, ok := s.leases[domain]; ok {
+		return
+	}
+
 	s.revision++
 
-	a.Revision = s.revision
-	a.UpdatedAt = time.Now().UTC()
-
-	s.allocations[a.Domain] = a
-
-	return nil
+	s.leases[domain] = &Lease{
+		ID:       uuid.NewString(),
+		Domain:   domain,
+		Type:     t,
+		State:    StatePending,
+		Revision: s.revision,
+	}
 }
 
-func (s *Store) Delete(domain string) bool {
-	domain = normalizeDomain(domain)
+func (s *Store) Poll(
+	agentID string,
+	max int,
+) []Lease {
+	now := time.Now()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.allocations[domain]; !ok {
-		return false
-	}
+	result := []Lease{}
 
-	delete(s.allocations, domain)
+	for _, lease := range s.leases {
 
-	s.revision++
+		if lease.State == StateAssigned &&
+			now.After(lease.ExpiresAt) {
 
-	return true
-}
+			lease.State = StatePending
+			lease.AgentID = ""
+		}
 
-func (s *Store) Get(domain string) (Allocation, bool) {
-	domain = normalizeDomain(domain)
+		if lease.State != StatePending {
+			continue
+		}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+		s.revision++
 
-	a, ok := s.allocations[domain]
+		lease.State = StateAssigned
+		lease.AgentID = agentID
+		lease.Revision = s.revision
+		lease.ExpiresAt = now.Add(s.leaseDuration)
 
-	return a, ok
-}
+		result = append(result, *lease)
 
-func (s *Store) List() []Allocation {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	result := make([]Allocation, 0, len(s.allocations))
-
-	for _, allocation := range s.allocations {
-		result = append(result, allocation)
+		if len(result) >= max {
+			break
+		}
 	}
 
 	return result
 }
 
-func (s *Store) Revision() uint64 {
+func (s *Store) Heartbeat(
+	agentID string,
+	leaseIDs []string,
+) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now()
+
+	for _, lease := range s.leases {
+
+		if lease.AgentID != agentID {
+			continue
+		}
+
+		for _, id := range leaseIDs {
+
+			if lease.ID != id {
+				continue
+			}
+
+			lease.ExpiresAt = now.Add(
+				s.leaseDuration,
+			)
+		}
+	}
+}
+
+func (s *Store) Activate(
+	leaseID string,
+	agentID string,
+	address string,
+	sni string,
+	routeID string,
+) bool {
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, lease := range s.leases {
+
+		if lease.ID != leaseID {
+			continue
+		}
+
+		if lease.AgentID != agentID {
+			return false
+		}
+
+		s.revision++
+
+		lease.State = StateActive
+		lease.Address = address
+		lease.SNI = sni
+		lease.RouteID = routeID
+		lease.Revision = s.revision
+
+		return true
+	}
+
+	return false
+}
+
+func (s *Store) Get(
+	domain string,
+) (*Lease, bool) {
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.revision
+	domain = normalize(domain)
+
+	lease, ok := s.leases[domain]
+
+	return lease, ok
 }

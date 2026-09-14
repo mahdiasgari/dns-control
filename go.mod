@@ -3,6 +3,7 @@ module github.com/wraplink/dns-control
 go 1.26
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/miekg/dns v1.1.73
 	gopkg.in/yaml.v3 v3.0.1
 )
