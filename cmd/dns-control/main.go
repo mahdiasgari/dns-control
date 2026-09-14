@@ -28,14 +28,14 @@ func main() {
 	log.Printf("dns-control starting")
 
 	log.Printf(
-		"dns: listen=%s upstream=%v ttl=%d",
+		"dns: listen %s upstream=%v ttl=%d",
 		cfg.DNS.Listen,
 		cfg.DNS.Upstream,
 		cfg.DNS.TTL,
 	)
 
 	log.Printf(
-		"api: listen=%s",
+		"api: listen %s",
 		cfg.API.Listen,
 	)
 

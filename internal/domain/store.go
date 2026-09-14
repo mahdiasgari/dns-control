@@ -18,14 +18,13 @@ func NewStore(rules []Rule) (*Store, error) {
 	for _, rule := range rules {
 		rule = rule.Normalize()
 
-		if rule.Domain == "" {
-			return nil, fmt.Errorf("domain cannot be empty")
+		if err := rule.Validate(); err != nil {
+			return nil, err
 		}
 
-		if !rule.Mode.Valid() {
+		if _, exists := s.rules[rule.Domain]; exists {
 			return nil, fmt.Errorf(
-				"invalid mode %q for domain %q",
-				rule.Mode,
+				"duplicate domain rule %q",
 				rule.Domain,
 			)
 		}
@@ -61,9 +60,13 @@ func (s *Store) Match(domain string) (Rule, bool) {
 	// Then parent-domain matching.
 	//
 	// Example:
+	//
 	// foo.game.example.com
-	// should match:
+	//
+	// can match:
+	//
 	// game.example.com
+	//
 	// if that rule exists.
 	for {
 		index := -1

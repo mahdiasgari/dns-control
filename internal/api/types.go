@@ -48,3 +48,8 @@ type ReportRequest struct {
 type ReportResponse struct {
 	OK bool `json:"ok"`
 }
+
+type LeasesResponse struct {
+	Revision uint64             `json:"revision"`
+	Leases   []allocation.Lease `json:"leases"`
+}

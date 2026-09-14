@@ -53,6 +53,11 @@ func NewHandler(
 		h.domainsList,
 	)
 
+	mux.HandleFunc(
+		"/api/v1/leases",
+		h.handleListLeases,
+	)
+
 	return h.auth(mux)
 }
 
@@ -373,4 +378,13 @@ func writeJSON(
 	if err := json.NewEncoder(w).Encode(value); err != nil {
 		return
 	}
+}
+
+func (h *Handler) handleListLeases(w http.ResponseWriter, r *http.Request) {
+	leases := h.allocations.List()
+
+	writeJSON(w, http.StatusOK, LeasesResponse{
+		Revision: h.allocations.Revision(),
+		Leases:   leases,
+	})
 }

@@ -1,6 +1,9 @@
 package domain
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 type Rule struct {
 	Domain string `yaml:"domain" json:"domain"`
@@ -10,6 +13,22 @@ type Rule struct {
 func (r Rule) Normalize() Rule {
 	r.Domain = normalizeDomain(r.Domain)
 	return r
+}
+
+func (r Rule) Validate() error {
+	if r.Domain == "" {
+		return fmt.Errorf("domain cannot be empty")
+	}
+
+	if !r.Mode.Valid() {
+		return fmt.Errorf(
+			"invalid mode %q for domain %q",
+			r.Mode,
+			r.Domain,
+		)
+	}
+
+	return nil
 }
 
 func normalizeDomain(value string) string {

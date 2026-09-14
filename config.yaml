@@ -23,7 +23,7 @@ domains:
   # Agent must allocate routing resources.
   # This mode is intended for domains where UDP
   # traffic needs to be handled by the edge.
-  - domain: "https://www.ea.com/"
+  - domain: "www.ea.com"
     mode: "route"
 
   # Normal DNS resolution.
